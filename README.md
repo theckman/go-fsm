@@ -7,7 +7,7 @@ it easy to maintain predictable state.
 
 ## License
 This code is released for use under the [MIT License](https://tldrlegal.com/license/mit-license),
-of which the full contense can be found within the [LICENSE](https://github.com/theckman/go-fsm/blob/master/LICENSE)
+of which the full contents can be found within the [LICENSE](https://github.com/theckman/go-fsm/blob/master/LICENSE)
 file.
 
 This license is extremely permissve, and should allow the full use of this code in almost all situations.
