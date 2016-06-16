@@ -5,6 +5,7 @@
 package fsm
 
 import (
+	"runtime"
 	"testing"
 
 	. "gopkg.in/check.v1"
@@ -38,6 +39,16 @@ func (t *TestSuite) setUpError(c *C) {
 func (t *TestSuite) SetUpSuite(c *C) {
 	t.setUpMachine(c)
 	t.setUpError(c)
+}
+
+type testCallback struct {
+	prevState, curState State
+}
+
+func (tc *testCallback) StateTransitionCallback(s State) error {
+	tc.prevState = tc.curState
+	tc.curState = s
+	return nil
 }
 
 func (t *TestSuite) TestMachine_AddStateTransitionRules(c *C) {
@@ -146,6 +157,45 @@ func (t *TestSuite) TestMachine_StateTransition(c *C) {
 	fsmErr, ok = err.(*Error)
 	c.Assert(ok, Equals, true)
 	c.Check(fsmErr.Code(), Equals, ErrorMachineNotInitialized)
+
+	//
+	// Test that the callback is called synchronously
+	//
+	tc := &testCallback{}
+
+	err = t.m.SetStateTransitionCallback(tc, true)
+	c.Assert(err, IsNil)
+
+	err = t.m.StateTransition("finishing")
+	c.Assert(err, IsNil)
+
+	state = t.m.CurrentState()
+	c.Check(state, Equals, State("finishing"))
+
+	c.Check(tc.curState, Equals, State("finishing"))
+	c.Check(tc.prevState, Equals, State(""))
+
+	//
+	// Test that the callback is called asynchronously
+	//
+	err = t.m.SetStateTransitionCallback(tc, false)
+	c.Assert(err, IsNil)
+
+	err = t.m.StateTransition("finished")
+	c.Assert(err, IsNil)
+
+	// ensure callbacks haven't execute, yet (might be racy)
+	c.Check(tc.curState, Equals, State("finishing"))
+	c.Check(tc.prevState, Equals, State(""))
+
+	state = t.m.CurrentState()
+	c.Check(state, Equals, State("finished"))
+
+	// schedule any goroutines to run
+	runtime.Gosched()
+
+	c.Check(tc.curState, Equals, State("finished"))
+	c.Check(tc.prevState, Equals, State("finishing"))
 }
 
 func (t *TestSuite) TestMachine_CurrentState(c *C) {
@@ -215,4 +265,17 @@ func (t *TestSuite) TestMachine_StateTransitionRules(c *C) {
 	fsmErr, ok = err.(*Error)
 	c.Assert(ok, Equals, true)
 	c.Check(fsmErr.Code(), Equals, ErrorMachineNotInitialized)
+}
+
+func (t *TestSuite) TestMission_SetStateTransitionCallback(c *C) {
+	var err error
+
+	// reset the machine
+	defer t.setUpMachine(c)
+
+	tc := &testCallback{}
+
+	err = t.m.SetStateTransitionCallback(tc, true)
+	c.Assert(err, IsNil)
+	c.Check(t.m.callback, DeepEquals, tc)
 }

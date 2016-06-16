@@ -33,12 +33,20 @@ func (trs TransitionRuleSet) Copy() TransitionRuleSet {
 	return srt
 }
 
+// CallbackHandler is an interface type defining the interface for receiving callbacks.
+type CallbackHandler interface {
+	StateTransitionCallback(State) error
+}
+
 // Machine is the state machine.
 type Machine struct {
 	transitions map[State]TransitionRuleSet
 	rules       map[State]map[State]State
 	mu          sync.RWMutex
 	state       State
+
+	callback     CallbackHandler
+	syncCallback bool
 }
 
 // CurrentState returns the machine's current state. If the State returned is
@@ -94,6 +102,20 @@ func (m *Machine) AddStateTransitionRules(sourceState State, destinationStates .
 	return nil
 }
 
+// SetStateTransitionCallback for the state transition. This is meant to send
+// callbacks back to the consumer for state changes. The callback only sends the
+// new state. The synchonous parameter indicates whether the callback is done
+// synchronously with the StateTransition() call.
+func (m *Machine) SetStateTransitionCallback(callback CallbackHandler, synchronous bool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.callback = callback
+	m.syncCallback = synchronous
+
+	return nil
+}
+
 // StateTransition triggers a transition to the toState. This function is also
 // used to set the initial state of machine.
 //
@@ -136,6 +158,18 @@ func (m *Machine) StateTransition(toState State) error {
 	}
 
 	m.state = toState
+
+	if m.callback != nil {
+		if m.syncCallback {
+			// do not return the error
+			// this may be reconsidered
+			m.callback.StateTransitionCallback(toState)
+		} else {
+			// spin off the callback
+			go func() { m.callback.StateTransitionCallback(toState) }()
+		}
+	}
+
 	return nil
 }
 
