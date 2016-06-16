@@ -13,7 +13,7 @@ import (
 )
 
 // Version is the semantic version (SemVer) string.
-const Version = "0.0.1"
+const Version = "0.0.2"
 
 // State is the machine state. It's really just a string.
 type State string
@@ -40,10 +40,11 @@ type CallbackHandler interface {
 
 // Machine is the state machine.
 type Machine struct {
+	state State
+	mu    sync.RWMutex
+
 	transitions map[State]TransitionRuleSet
 	rules       map[State]map[State]State
-	mu          sync.RWMutex
-	state       State
 
 	callback     CallbackHandler
 	syncCallback bool
@@ -172,36 +173,3 @@ func (m *Machine) StateTransition(toState State) error {
 
 	return nil
 }
-
-/*
-	NOT SURE I'LL EVER NEED THIS CODE, ALSO DON'T WANT TO STASH IT (IT'LL BE LOST)
-*/
-// func (m *Machine) RemoveStateTransition(sourceState State) error {
-// 	m.mu.Lock()
-// 	defer m.mu.Unlock()
-
-// 	if m.transitions == nil {
-// 		return nil
-// 	}
-
-// 	if m.state == sourceState {
-// 		return fmt.Errorf("the state %s cannot be removed as it is in use", sourceState)
-// 	}
-
-// 	delete(m.transitions, sourceState)
-
-// 	return nil
-// }
-
-// func (m *Machine) RemoveStateTransitionRule(sourceState State, destinationState State) error {
-// 	m.mu.Lock()
-// 	defer m.mu.Unlock()
-
-// 	if m.transitions == nil || m.transitions[sourceState] == nil {
-// 		return nil
-// 	}
-
-// 	delete(m.transitions[sourceState], destinationState)
-
-// 	return nil
-// }
