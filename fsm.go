@@ -44,7 +44,6 @@ type Machine struct {
 	mu    sync.RWMutex
 
 	transitions map[State]TransitionRuleSet
-	rules       map[State]map[State]State
 
 	callback     CallbackHandler
 	syncCallback bool
